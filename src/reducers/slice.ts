@@ -1,5 +1,6 @@
-import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { User } from "../models/user";
+import { asyncLoadUsers, asyncLogin } from "./thunks";
 // Register => Nada
 // Login => userLoged{
 //   token,
@@ -8,27 +9,22 @@ import { User } from "../models/user";
 // }
 // Lista de Usuario
 
+type Status = "loading" | "idle" | "pluf";
+
 type State = {
+  UserLoginStatus: Status;
   userLoged: {
     token: string;
     user: User;
   } | null;
+  isLoadingUsersStatus: Status;
   users: User[];
 };
 
-type LoginData = {
-  token: string;
-  user: User;
-};
-
-export const asyncLoadUsers = createAsyncThunk("user/loadUser", async () => {
-  const response = await fetch("");
-
-  return response.json();
-});
-
 const initialState: State = {
+  UserLoginStatus: "idle",
   userLoged: null,
+  isLoadingUsersStatus: "idle",
   users: [],
 };
 
@@ -36,12 +32,6 @@ export const slice = createSlice({
   name: "user",
   initialState,
   reducers: {
-    login(state, action: PayloadAction<LoginData>) {
-      state.userLoged = {
-        token: action.payload.token,
-        user: action.payload.user,
-      };
-    },
     logout(state) {
       state.userLoged = null;
       state.users = [];
@@ -59,11 +49,33 @@ export const slice = createSlice({
     },
   },
   extraReducers(builder) {
+    // LOAD
+    builder.addCase(asyncLoadUsers.pending, (state) => {
+      state.isLoadingUsersStatus = "loading";
+    });
     builder.addCase(asyncLoadUsers.fulfilled, (state, action) => {
       state.users = action.payload;
+      state.isLoadingUsersStatus = "idle";
+    });
+    builder.addCase(asyncLoadUsers.rejected, (state) => {
+      state.isLoadingUsersStatus = "pluf";
+    });
+
+    // LOGIN
+    builder.addCase(asyncLogin.pending, (state) => {
+      state.UserLoginStatus = "loading";
+    });
+    builder.addCase(asyncLogin.fulfilled, (state, action) => {
+      state.userLoged = {
+        token: action.payload.token,
+        user: action.payload.user,
+      };
+    });
+    builder.addCase(asyncLogin.rejected, (state) => {
+      state.UserLoginStatus = "pluf";
     });
   },
 });
 
-export const { loadUsers, login, logout, updateRelations } = slice.actions;
+export const { loadUsers, logout, updateRelations } = slice.actions;
 export const { reducer } = slice;
